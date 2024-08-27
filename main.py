@@ -13,6 +13,8 @@ from generated_protos_py.service_pb2_grpc import ClientCommandsStub
 from generated_protos_py.service_pb2 import commands__pb2
 from generated_protos_py.models_pb2 import Block
 
+PURPLE = "\033[95m"
+RESET = "\033[0m"
 
 def fetch_app_key(grpc_client):
     req = commands__pb2.Rpc.Account.LocalLink.NewChallenge.Request(appName="Example")
@@ -109,10 +111,28 @@ def create_object_with_content(client, metadata, content):
 
 client, metadata = create_authenticated_client()
 
-req = commands__pb2.Rpc.Object.Search.Request()
+query = prompt('🔍 Enter your query: ')
+req = commands__pb2.Rpc.Object.SearchWithMeta.Request(fullText=query, returnMeta=True)
 all_objects = client.ObjectSearchWithMeta(req, metadata=metadata)
 
-print("Total objects: ", len(all_objects.results))
+with open("results.txt", "w") as file:
+    for obj in all_objects.results:
+        if 'name' in obj.details.fields:
+            # Print and save the object name
+            name_str = obj.details.fields['name'].string_value
+            print()
+            print(PURPLE + name_str + RESET)
+            file.write("\n" + name_str + "\n")
+
+            # Print and save metadata highlights
+            for m in obj.meta:
+                highlight_str = "\t" + m.highlight
+                print(highlight_str)
+                file.write(highlight_str + "\n")
+
+
+print()
+print("Total objects found: ", len(all_objects.results))
 
 space_ids = set()
 
@@ -121,13 +141,7 @@ for obj in all_objects.results:
         space_id = obj.details.fields['spaceId'].string_value
         space_ids.add(space_id)
 
-print("Total spaceIds: ", len(space_ids))
-
+print()
+print(" Spaces where the objects belong:")
 for space_id in space_ids:
     print(space_id)
-
-# This isn't working
-# req = commands__pb2.Rpc.Workspace.GetAll.Request()
-# all_workspaces = client.WorkspaceGetAll(req, metadata=metadata)
-
-# print(all_workspaces)
