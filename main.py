@@ -109,7 +109,25 @@ def create_object_with_content(client, metadata, content):
 
 client, metadata = create_authenticated_client()
 
-print("🧠 Hey, let's capture your thoughts!")
-content = prompt('👉 Enter the content: ')
+req = commands__pb2.Rpc.Object.Search.Request()
+all_objects = client.ObjectSearchWithMeta(req, metadata=metadata)
 
-create_object_with_content(client, metadata, content)
+print("Total objects: ", len(all_objects.results))
+
+space_ids = set()
+
+for obj in all_objects.results:
+    if 'spaceId' in obj.details.fields:
+        space_id = obj.details.fields['spaceId'].string_value
+        space_ids.add(space_id)
+
+print("Total spaceIds: ", len(space_ids))
+
+for space_id in space_ids:
+    print(space_id)
+
+# This isn't working
+# req = commands__pb2.Rpc.Workspace.GetAll.Request()
+# all_workspaces = client.WorkspaceGetAll(req, metadata=metadata)
+
+# print(all_workspaces)
