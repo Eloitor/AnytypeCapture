@@ -1,4 +1,5 @@
 import grpc
+import re
 from dotenv import load_dotenv
 from pathlib import Path
 from thefuzz import process
@@ -109,42 +110,102 @@ def create_object_with_content(client, metadata, content):
     )
     client.BlockCreate(req, metadata=metadata)
 
-client, metadata = create_authenticated_client()
-
-query = prompt('🔍 Enter your query: ')
-req = commands__pb2.Rpc.Object.SearchWithMeta.Request(fullText=query, returnMeta=True)
-all_objects = client.ObjectSearchWithMeta(req, metadata=metadata)
-
-with open("results.txt", "w") as file:
+def find_object_by_name(client, metadata, name: str):
+    req = commands__pb2.Rpc.Object.SearchWithMeta.Request(fullText=name, returnMeta=True)
+    all_objects = client.ObjectSearchWithMeta(req, metadata=metadata)
     for obj in all_objects.results:
         if 'name' in obj.details.fields:
-            # Print and save the object name
             name_str = obj.details.fields['name'].string_value
-            print()
-            print(PURPLE + name_str + RESET)
-            file.write("\n" + name_str + "\n")
-        else:
-            name_str = "[UNNAMED OBJECT]"
-            print()
-            print(PURPLE + name_str + RESET)
-            file.write("\n" + name_str + "\n")
+            if name_str.lower() == name.lower():
+                return obj
+    return None
 
-        # Print and save metadata highlights
-        for m in obj.meta:
-            highlight_str = "\t" + m.highlight
-            print(highlight_str)
-            file.write(highlight_str + "\n")
-
-
-print()
-print("Total objects found: ", len(all_objects.results))
+client, metadata = create_authenticated_client()
 
 space_ids = set()
+objects_with_links = set()
 
-for obj in all_objects.results:
-    if 'spaceId' in obj.details.fields:
-        space_id = obj.details.fields['spaceId'].string_value
-        space_ids.add(space_id)
+# First query for [[ ]] patterns
+req_brackets = commands__pb2.Rpc.Object.SearchWithMeta.Request(fullText="[[ ]]", returnMeta=True)
+all_objects_brackets = client.ObjectSearchWithMeta(req_brackets, metadata=metadata)
+
+with open("results.txt", "w") as file:
+    for obj in all_objects_brackets.results:
+        targets_and_highlights = []
+
+        # Check for [[ ]] patterns in the metadata highlights
+        for m in obj.meta:
+            highlight_str = m.highlight
+            matches = re.findall(r'#?\[\[(.*?)\]\]', highlight_str)
+            if matches:
+                for match in matches:
+                    target = find_object_by_name(client, metadata, match)
+                    if target:
+                        target_name = target.details.fields['name'].string_value
+                        targets_and_highlights.append((highlight_str, target_name))
+
+        if not targets_and_highlights:
+            continue
+
+        objects_with_links.add(obj.details.fields['objectId'].string_value)
+        space_ids.add(obj.details.fields['spaceId'].string_value)
+
+        if 'name' in obj.details.fields:
+            name_str = obj.details.fields['name'].string_value
+        else:
+            name_str = "[UNNAMED OBJECT]"
+        
+        print(PURPLE + name_str + RESET)
+        file.write("\n" + name_str + "\n")
+
+        for highlight_str, target_name in targets_and_highlights:
+            print("\t" + highlight_str)
+            file.write("\t" + highlight_str + "\n")
+            print("-> " + target_name)
+            file.write("-> " + target_name + "\n")
+
+
+
+# Second query for # links
+req_hashes = commands__pb2.Rpc.Object.SearchWithMeta.Request(fullText="#", returnMeta=True)
+all_objects_hashes = client.ObjectSearchWithMeta(req_hashes, metadata=metadata)
+
+with open("results.txt", "w") as file:
+    for obj in all_objects_hashes.results:
+        targets_and_highlights = []
+
+        # Check for # links in the metadata highlights
+        for m in obj.meta:
+            highlight_str = m.highlight
+            matches = re.findall(r'#(\w+)', highlight_str)
+            if matches:
+                for match in matches:
+                    target = find_object_by_name(client, metadata, match)
+                    if target:
+                        target_name = target.details.fields['name'].string_value
+                        targets_and_highlights.append((highlight_str, target_name))
+
+        if not targets_and_highlights:
+            continue
+
+        objects_with_links.add(obj.details.fields['objectId'].string_value)
+        space_ids.add(obj.details.fields['spaceId'].string_value)
+
+        if 'name' in obj.details.fields:
+            name_str = obj.details.fields['name'].string_value
+        else:
+            name_str = "[UNNAMED OBJECT]"
+        
+        print(PURPLE + name_str + RESET)
+        file.write("\n" + name_str + "\n")
+
+        for highlight_str, target_name in targets_and_highlights:
+            print("\t" + highlight_str)
+            file.write("\t" + highlight_str + "\n")
+            print("-> " + target_name)
+            file.write("-> " + target_name + "\n")
+print()
+print("Total objects with links found: ", len(objects_with_links))
 
 print()
 print(" Spaces where the objects belong:")
