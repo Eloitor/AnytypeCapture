@@ -147,7 +147,7 @@ with open("results.txt", "w") as file:
         if not targets_and_highlights:
             continue
 
-        objects_with_links.add(obj.details.fields['objectId'].string_value)
+        objects_with_links.add(obj.details.fields['id'].string_value)
         space_ids.add(obj.details.fields['spaceId'].string_value)
 
         if 'name' in obj.details.fields:
@@ -188,7 +188,7 @@ with open("results.txt", "w") as file:
         if not targets_and_highlights:
             continue
 
-        objects_with_links.add(obj.details.fields['objectId'].string_value)
+        objects_with_links.add(obj.details.fields['id'].string_value)
         space_ids.add(obj.details.fields['spaceId'].string_value)
 
         if 'name' in obj.details.fields:
