@@ -123,12 +123,17 @@ with open("results.txt", "w") as file:
             print()
             print(PURPLE + name_str + RESET)
             file.write("\n" + name_str + "\n")
+        else:
+            name_str = "[UNNAMED OBJECT]"
+            print()
+            print(PURPLE + name_str + RESET)
+            file.write("\n" + name_str + "\n")
 
-            # Print and save metadata highlights
-            for m in obj.meta:
-                highlight_str = "\t" + m.highlight
-                print(highlight_str)
-                file.write(highlight_str + "\n")
+        # Print and save metadata highlights
+        for m in obj.meta:
+            highlight_str = "\t" + m.highlight
+            print(highlight_str)
+            file.write(highlight_str + "\n")
 
 
 print()
